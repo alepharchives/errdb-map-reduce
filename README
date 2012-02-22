@@ -1,0 +1,6 @@
+Map 1. {Dn, Grp, Timestamp} -> [{Metric, Val},...]
+
+Map 2. {Dn, Grp} -> [{Metric, Avg = Val/Count},...]
+
+Map 3. Dn -> [{{Grp, Metric}, Avg},...]
+
