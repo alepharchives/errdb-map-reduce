@@ -77,7 +77,9 @@ if __name__ == '__main__':
     job = Job().run(input=job.wait(show=True),
 			map_reader=chain_reader,
 			map=map2,
-			reduce=reduce2)
+			partitions=4,
+			reduce=reduce2,
+			merge_partitions=False)
     out = file("out.txt", "w")
     for word, count in result_iterator(job.wait(show=True)): #
         print >>out, word, ":", count
