@@ -1,6 +1,50 @@
 from disco.core import Job, result_iterator
+from disco.func import chain_reader
+from optparse import OptionParser
+from os import getenv
 
-from disco.worker.classic.func import chain_reader
+wifi_ap_mapping = {
+    'avail:pingok': (lambda v: v),
+    'avail:pingtimeout': (lambda v: v),
+    'avail:snmpok': (lambda v: v),
+    'avail:snmptimeout': (lambda v: v),
+    'assocnum:assocNum': (lambda v: v*3600),	#assocnum
+    'assocnum:assocSuccNum': (lambda v: v*3600),#assocsuccnum
+    'assocnum:reAssocNum': (lambda v: v*3600),	#reassocnum
+    'assocnum:reAssocSuccNum': (lambda v: v*3600),
+    'assocnum:assocRefusedNum': (lambda v: v*3600),
+    'assocnum:deauthNum': (lambda v: v*3600),
+    'wirelesstraffic:ifInOctets': ,  #rxbytestotalmax,rxbytestotal
+    'wirelesstraffic:ifInPkts': ,
+    'wirelesstraffic:ifInDiscards': ,
+    'wirelesstraffic:ifInUcastPkts': ,
+    'wirelesstraffic:ifInErrors': ,
+    'wirelesstraffic:ifInAvgSignal': ,
+    'wirelesstraffic:ifInHighSignal': ,
+    'wirelesstraffic:ifInLowSignal': ,
+    'wirelesstraffic:ifOutOctets': , #txbytestotal, txbytestotalmax
+    'wirelesstraffic:ifOutPkts': ,
+    'wirelesstraffic:ifOutDiscards': ,
+    'wirelesstraffic:ifOutUcastPkts,': 
+    'wirelesstraffic:ifOutErrors': ,
+    'wirelesstraffic:ifFrameRetryRate': ,
+    'assocnum:assocUserNum': (lambda v: v >= 100 ? 0 : v), #apassocnum
+    'assocnum:authUserNum': (lambda v: v >= 100 ? 0 : v), #aponlinenum
+	'wiredtraffic:ifInOctets': (lambda v: v*0.45), #ifinoctets, ifinoctetsmax,
+	'wiredtraffic:ifInNUcastPkts': (lambda v: v*3600),  #ifinpkts,
+	'wiredtraffic:ifInDiscards': (lambda v: v>100000 ? 0:v*0.45),   #ifindiscards,
+	'wiredtraffic:ifInUcastPkts': (lambda v: v*0.45),  #ifinpkts, ifinucastpkts,
+	'wiredtraffic:ifInErrors':(lambda v: v>100000 ? 0:v*0.45),  #ifinerrors,
+	'wiredtraffic:ifOutOctets':(lambda v: v*0.45),  #ifoutoctets, ifoutoctetsmax,
+	'wiredtraffic:ifOutNUcastPkt': (lambda v: v*0.45), #ifoutpkts,
+	'wiredtraffic:ifOutDiscards': (lambda v: v>100000 ? 0:v*0.45),  #ifoutdiscards,
+	'wiredtraffic:ifOutUcastPkts': (lambda v: v*0.45), #ifoutucastpkts,
+	'wiredtraffic:ifOutErrors': (lambda v: v>100000 ? 0:v*0.45),  #ifouterrors,
+    'delayper': (lambda v: v),
+    'assocnum:cpuRTUsage': (lambda v: v), #cpuper,
+    'assocnum:memRTUsage': (lambda v: v)#memper]).
+}
+
 
 """
 Input: "dn:grp@timestamp:metric=val,metric1=val1..."
@@ -61,6 +105,17 @@ def reduce2(iter, params):
 		yield dn, str(dict(dataset))
 
 if __name__ == '__main__':
+    parser = OptionParser(usage='%prog [options] hour')
+    parser.add_option('--disco-master',
+                      default=getenv('DISCO_MASTER'),
+                      help='Disco master')
+
+    (options, hour) = parser.parse_args()
+    print hour
+	
+	#get time of now
+
+"""
     job = Job().run(input=["http://localhost:9999/journal/25/1.journal",
 						#"http://localhost:9999/journal/25/2.journal",
 						#"http://localhost:9999/journal/25/3.journal",
@@ -84,5 +139,6 @@ if __name__ == '__main__':
     for word, count in result_iterator(job.wait(show=True)): #
         print >>out, word, ":", count
     out.close()
+"""
 
 
