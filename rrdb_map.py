@@ -134,7 +134,7 @@ def map(line, params):
 		name, format = metric_mapping[(grp, raw_name)]
 		names = type(name) == type('') and [name] or name
 		for name in names:
-			yield dn, {name: format(val)}
+			yield dn, {name: format(float(val))}
 
 """
 Reduce: "Dn" -> {Metric, Val}
