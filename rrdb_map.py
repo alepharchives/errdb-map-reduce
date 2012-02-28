@@ -1,140 +1,166 @@
 
 from disco.core import Job, result_iterator
+
 from disco.func import chain_reader
+
 from optparse import OptionParser
+
 from os import getenv
 
-null = (lambda v: v)
+#null = (lambda v: v)
 
-mbps = (lambda v: v / 100000)
+#mbps = (lambda v: v / 100000)
 
-kbytes = (lambda v: v * 0.45)
+#kbytes = (lambda v: v * 0.45)
 
-hourly = (lambda v: v * 3600)
+#hourly = (lambda v: v * 3600)
 
-safehourly = (lambda v: v > 100000 and 0 or v*3600)
+#safehourly = (lambda v: v > 100000 and 0 or v*3600)
 
-less100 = (lambda v: v > 100 and 0 or v)
+#less100 = (lambda v: v > 100 and 0 or v)
+
+#percent = (lambda v: v / 100)
 
 #(grp, raw_metric): (metric, formatter)
-metric_mapping = {
-    ('avail', 'pingok'): ('pingok', null),
-    ('avail', 'pingtimeout'): ('pingtimeout', null),
-    ('avail', 'snmpok'): ('snmpok', null),
-    ('avail', 'snmptimeout'): ('snmptimeout', null),
-
-    ('ping', 'rtmax'): ('delaymax', null),
-    ('ping', 'rtmin'): ('delaymin', null),
-    ('ping', 'rta'): ('delayper', null),
-    ('ping', 'lostRate'): ('ping_loss', percent),
-
-    ('acperf', 'cpuRTUsage'): ('cpuper', null),
-    ('acperf', 'memRTUsage'): ('memper', null),
-    ('acperf', 'bandWidth'): ('uplink_bandwidth', mbps),
-    ('acperf', 'upOctets'): ('ifinoctets', kbytes),
-    ('acperf', 'downOctets'): ('ifoutoctets', kbytes),
-    ('acperf', 'discardPkts'): ('ifindiscards', hourly),
-    ('acperf', 'upInPkts'): ('ifinucastpkts', hourly),
-    ('acperf', 'upOutPkts'): ('ifoutucastpkts', hourly),
-    ('acperf', 'dHCPReqTimes'): ('dhcpreqtimes', hourly),
-    ('acperf', 'dHCPReqSucTimes'): ('dhcpreqsuctimes', hourly),
-    ('acperf', 'onlineNum'): ('sessions', null),
-    ('acperf', 'authNum'): ('authtotals', hourly),
-    ('acperf', 'maxNum'): ('maxsessions', null),
-    ('acperf', 'normalNum'): ('normaldrops', hourly),
-    ('acperf', 'deauthNum'): ('abnormaldrops', hourly),
-    ('acperf', 'authReqNum'): ('authreqtotals', hourly),
-    ('acperf', 'authSucNum'): ('authsuctotals', hourly),
-    ('acperf', 'accReqNum'): ('accreqnum', hourly),
-    ('acperf', 'accSucNum'): ('accsucnum', hourly),
-    ('acperf', 'radiusReqPkts'): ('radiusreqpkts', null),
-    ('acperf', 'radiusReqPkts'): ('radiusreppkts', null),
-    ('acperf', 'leaveReqPkts'): ('leavereqpkts', null),
-    ('acperf', 'leaveReqPkts'): ('leavereppkts', null),
-    ('acperf', 'radiusAvgDelay'): ('radiuavgdelay', null),
-    ('acperf', 'portalChallengeReqCount'): ('challenge_total', hourly),
-    ('acperf', 'portalChallengeRespCount'): ('challenge_suc', hourly),
-    ('acperf', 'portalAuthReqCount'): ('login_total', hourly),
-    ('acperf', 'portalAuthRespCount'): ('login_suc', hourly),
-    ('acperf', 'leaveReqCount'): ('logout_total', hourly),
-    ('acperf', 'leaveRepCount'): ('logout_suc', hourly),
-    ('acperf', 'addressCount'): ('ip_using', null),
-    ('acperf', 'dHCPIpPoolUsage'): ('dhcp_rate', null),
-    ('acperf', 'flashMemRTUsage'): ('flashper', null),
-
-    ('assocnum', 'assocNum'): ('assocnum', hourly),	
-    ('assocnum', 'assocSuccNum'): ('assocsuccnum', hourly),
-    ('assocnum', 'reAssocNum'): ('reassocnum', hourly),
-    ('assocnum', 'reAssocSuccNum'): ('reassocsuccnum', hourly),
-    ('assocnum', 'assocRefusedNum'): ('deauthnum', hourly),
-    ('assocnum', 'deauthNum'): ('deauthnum', hourly),
-    ('assocnum', 'assocUserNum'): ('apassocnum', less100),
-    ('assocnum', 'authUserNum'): ('aponlinenum', less100),
-    ('assocnum', 'cpuRTUsage'): ('cpuper', null),
-    ('assocnum', 'memRTUsage'): ('memper', null),
-
-    ('wirelesstraffic', 'ifInOctets'): (['rxbytestotalmax', 'rxbytestotal'], kbytes),
-    ('wirelesstraffic', 'ifInPkts'): ('rxpacketstotal', hourly),
-    ('wirelesstraffic', 'ifInDiscards'): ('rxpacketsdropped', safehourly),
-    ('wirelesstraffic', 'ifInUcastPkts'): ('rxpacketsunicast', hourly),
-    ('wirelesstraffic', 'ifInErrors'): ('rxpacketserror', safehourly),
-    ('wirelesstraffic', 'ifInAvgSignal'): ('ifinavgsignal', null),
-    ('wirelesstraffic', 'ifInHighSignal'): ('ifinhighsignal', null),
-    ('wirelesstraffic', 'ifInLowSignal'): ('ifinlowsignal', null),
-    ('wirelesstraffic', 'ifOutOctets'): (['txbytestotal', 'txbytestotalmax'], kbytes), 
-    ('wirelesstraffic', 'ifOutPkts'): ('txpacketstotal', hourly),
-    ('wirelesstraffic', 'ifOutDiscards'): ('txpacketsdropped', safehourly),
-    ('wirelesstraffic', 'ifOutUcastPkts,'): ('txpacketsunicast', hourly),
-    ('wirelesstraffic', 'ifOutErrors'): ('txpacketserror', safehourly),
-    ('wirelesstraffic', 'ifFrameRetryRate'): ('ifframeretryrate', null),
-
-    ('wiredtraffic', 'ifInOctets'): (['ifinoctetsmax', 'ifinoctets'], kbytes),
-    ('wiredtraffic', 'ifInNUcastPkts'): ('ifinnucastpkts', hourly),  
-    ('wiredtraffic', 'ifInDiscards'): ('ifindiscards', safehourly),
-    ('wiredtraffic', 'ifInUcastPkts'): (['ifinpkts', 'ifinucastpkts'], hourly),
-    ('wiredtraffic', 'ifInErrors'): ('ifinerrors', safehourly), 
-    ('wiredtraffic', 'ifOutOctets'): (['ifoutoctetsmax', 'ifoutoctets'], kbytes),
-    ('wiredtraffic', 'ifOutNUcastPkt'): ('ifoutnucastpkts', hourly),
-    ('wiredtraffic', 'ifOutDiscards'): ('ifoutdiscards', safehourly),
-    ('wiredtraffic', 'ifOutUcastPkts'): (['ifoutpkts', 'ifoutucastpkts'], 'hourly'),
-    ('wiredtraffic', 'ifOutErrors'): ('ifouterrors', safehourly),
-
-    ('intftraffic', 'ifInOctets'): ('ifinoctets', kbytes),
-	('intftraffic', 'ifInNUcastPkts'): ('ifinnucastpkts', hourly),
-	('intftraffic', 'ifInDiscards'): ('ifindiscards', hourly),
-	('intftraffic', 'ifInUcastPkts'): ('ifinucastpkts', hourly),
-	('intftraffic', 'ifInErrors'): ('ifinerrors', hourly),
-	('intftraffic', 'ifOutOctets'): ('ifoutoctets', kbytes),
-	('intftraffic', 'ifOutNUcastPkts'): ('ifoutnucastpkts', hourly),
-	('intftraffic', 'ifOutDiscards'): ('ifoutdiscards', hourly),
-	('intftraffic', 'ifOutUcastPkts'): ('ifoutucastpkts', hourly),
-	('intftraffic', 'ifOutErrors'): ('ifouterrors', hourly),
-	('intftraffic', 'ifUpDwnTimes'): ('itfupdownnums', hourly),
-
-    ('swcpu', 'cpuLoad1'): (['cpuper', 'cpumax'], null),
-    ('swmem', 'memUsage'): (['memper', 'memmax'], null),
-
-    ('ssidwireless', 'ifInOctets'): ('rxbytestotal', kbytes),
-    ('ssidwireless', 'ifInPkts'): ('rxpacketstotal', hourly),
-    ('ssidwireless', 'ifOutOctets'): ('txbytestotal', kbytes),
-    ('ssidwireless', 'ifOutPkts'): ('txpacketstotal', hourly)
-}
 
 """
 Input: "dn:grp@timestamp:metric=val,metric1=val1..."
 Map: "dn" -> {Metric: Val}
 """
 def map(line, params):
+	mapping = {
+    ('avail', 'pingok'): ('pingok', (lambda v: v)),
+    ('avail', 'pingtimeout'): ('pingtimeout', (lambda v: v)),
+    ('avail', 'snmpok'): ('snmpok', (lambda v: v)),
+    ('avail', 'snmptimeout'): ('snmptimeout', (lambda v: v)),
+
+    ('ping', 'rtmax'): ('delaymax', (lambda v: v)),
+    ('ping', 'rtmin'): ('delaymin', (lambda v: v)),
+    ('ping', 'rta'): ('delayper', (lambda v: v)),
+    ('ping', 'lostRate'): ('ping_loss', (lambda v: v / 100)),
+
+    ('acperf', 'cpuRTUsage'): ('cpuper', (lambda v: v)),
+    ('acperf', 'memRTUsage'): ('memper', (lambda v: v)),
+    ('acperf', 'bandWidth'): ('uplink_bandwidth', (lambda v: v / 100000)
+),
+    ('acperf', 'upOctets'): ('ifinoctets', (lambda v: v * 0.45)),
+    ('acperf', 'downOctets'): ('ifoutoctets', (lambda v: v * 0.45)),
+    ('acperf', 'discardPkts'): ('ifindiscards', (lambda v: v * 3600)),
+    ('acperf', 'upInPkts'): ('ifinucastpkts', (lambda v: v * 3600)),
+    ('acperf', 'upOutPkts'): ('ifoutucastpkts', (lambda v: v * 3600)),
+    ('acperf', 'dHCPReqTimes'): ('dhcpreqtimes', (lambda v: v * 3600)),
+    ('acperf', 'dHCPReqSucTimes'): ('dhcpreqsuctimes', (lambda v: v * 3600)),
+    ('acperf', 'onlineNum'): ('sessions', (lambda v: v)),
+    ('acperf', 'authNum'): ('authtotals', (lambda v: v * 3600)),
+    ('acperf', 'maxNum'): ('maxsessions', (lambda v: v)),
+    ('acperf', 'normalNum'): ('normaldrops', (lambda v: v * 3600)),
+    ('acperf', 'deauthNum'): ('abnormaldrops', (lambda v: v * 3600)),
+    ('acperf', 'authReqNum'): ('authreqtotals', (lambda v: v * 3600)),
+    ('acperf', 'authSucNum'): ('authsuctotals', (lambda v: v * 3600)),
+    ('acperf', 'accReqNum'): ('accreqnum', (lambda v: v * 3600)),
+    ('acperf', 'accSucNum'): ('accsucnum', (lambda v: v * 3600)),
+    ('acperf', 'radiusReqPkts'): ('radiusreqpkts', (lambda v: v)),
+    ('acperf', 'radiusReqPkts'): ('radiusreppkts', (lambda v: v)),
+    ('acperf', 'leaveReqPkts'): ('leavereqpkts', (lambda v: v)),
+    ('acperf', 'leaveReqPkts'): ('leavereppkts', (lambda v: v)),
+    ('acperf', 'radiusAvgDelay'): ('radiuavgdelay', (lambda v: v)),
+    ('acperf', 'portalChallengeReqCount'): ('challenge_total', (lambda v: v * 3600)),
+    ('acperf', 'portalChallengeRespCount'): ('challenge_suc', (lambda v: v * 3600)),
+    ('acperf', 'portalAuthReqCount'): ('login_total', (lambda v: v * 3600)),
+    ('acperf', 'portalAuthRespCount'): ('login_suc', (lambda v: v * 3600)),
+    ('acperf', 'leaveReqCount'): ('logout_total', (lambda v: v * 3600)),
+    ('acperf', 'leaveRepCount'): ('logout_suc', (lambda v: v * 3600)),
+    ('acperf', 'addressCount'): ('ip_using', (lambda v: v)),
+    ('acperf', 'dHCPIpPoolUsage'): ('dhcp_rate', (lambda v: v)),
+    ('acperf', 'flashMemRTUsage'): ('flashper', (lambda v: v)),
+    ('acperf', 'flashMemFree'): ('flashmemfree', (lambda v: v)),
+    ('acperf', 'flashMemTotal'): ('flashmemtotal', (lambda v: v)),
+
+    ('assocnum', 'assocNum'): ('assocnum', (lambda v: v * 3600)),	
+    ('assocnum', 'assocSuccNum'): ('assocsuccnum', (lambda v: v * 3600)),
+    ('assocnum', 'assocFailNum'): ('assocfailnum', (lambda v: v * 3600)),
+    ('assocnum', 'reAssocNum'): ('reassocnum', (lambda v: v * 3600)),
+    ('assocnum', 'reAssocSuccNum'): ('reassocsuccnum', (lambda v: v * 3600)),
+	('assocnum', 'reAssocFailNum'): ('reassocfailnum', (lambda v: v * 3600)),
+    ('assocnum', 'assocRefusedNum'): ('deauthnum', (lambda v: v * 3600)),
+    ('assocnum', 'deauthNum'): ('deauthnum', (lambda v: v * 3600)),
+    ('assocnum', 'assocUserNum'): ('apassocnum', (lambda v: v > 100 and 0 or v)),
+    ('assocnum', 'authUserNum'): ('aponlinenum', (lambda v: v > 100 and 0 or v)),
+    ('assocnum', 'cpuRTUsage'): ('cpuper', (lambda v: v)),
+    ('assocnum', 'memRTUsage'): ('memper', (lambda v: v)),
+
+	('stausers', 'stausers'): ('stausers', (lambda v: v)),
+
+    ('wirelesstraffic', 'ifInOctets'): (['rxbytestotalmax', 'rxbytestotal'], (lambda v: v * 0.45)),
+    ('wirelesstraffic', 'ifInPkts'): ('rxpacketstotal', (lambda v: v * 3600)),
+    ('wirelesstraffic', 'ifInDiscards'): ('rxpacketsdropped', (lambda v: v > 100000 and 0 or v*3600)),
+    ('wirelesstraffic', 'ifInUcastPkts'): ('rxpacketsunicast', (lambda v: v * 3600)),
+    ('wirelesstraffic', 'ifInErrors'): ('rxpacketserror', (lambda v: v > 100000 and 0 or v*3600)),
+    ('wirelesstraffic', 'ifInAvgSignal'): ('ifinavgsignal', (lambda v: v)),
+    ('wirelesstraffic', 'ifInHighSignal'): ('ifinhighsignal', (lambda v: v)),
+    ('wirelesstraffic', 'ifInLowSignal'): ('ifinlowsignal', (lambda v: v)),
+    ('wirelesstraffic', 'ifOutOctets'): (['txbytestotal', 'txbytestotalmax'], (lambda v: v * 0.45)), 
+    ('wirelesstraffic', 'ifOutPkts'): ('txpacketstotal', (lambda v: v * 3600)),
+    ('wirelesstraffic', 'ifOutDiscards'): ('txpacketsdropped', (lambda v: v > 100000 and 0 or v*3600)),
+    ('wirelesstraffic', 'ifOutUcastPkts,'): ('txpacketsunicast', (lambda v: v * 3600)),
+    ('wirelesstraffic', 'ifOutErrors'): ('txpacketserror', (lambda v: v > 100000 and 0 or v*3600)),
+    ('wirelesstraffic', 'ifFrameRetryRate'): ('ifframeretryrate', (lambda v: v)),
+
+    ('wiredtraffic', 'ifInOctets'): (['ifinoctetsmax', 'ifinoctets'], (lambda v: v * 0.45)),
+    ('wiredtraffic', 'ifInNUcastPkts'): ('ifinnucastpkts', (lambda v: v * 3600)),  
+    ('wiredtraffic', 'ifInDiscards'): ('ifindiscards', (lambda v: v > 100000 and 0 or v*3600)),
+	#TODO: fixme later
+    ('wiredtraffic', 'ifInPkts'): ('ifinpkts', (lambda v: v * 3600)),
+    ('wiredtraffic', 'ifInUcastPkts'): (['ifinpkts', 'ifinucastpkts'], (lambda v: v * 3600)),
+    ('wiredtraffic', 'ifInErrors'): ('ifinerrors', (lambda v: v > 100000 and 0 or v*3600)), 
+    ('wiredtraffic', 'ifOutOctets'): (['ifoutoctetsmax', 'ifoutoctets'], (lambda v: v * 0.45)),
+    ('wiredtraffic', 'ifOutNUcastPkts'): ('ifoutnucastpkts', (lambda v: v * 3600)),
+    ('wiredtraffic', 'ifOutDiscards'): ('ifoutdiscards', (lambda v: v > 100000 and 0 or v*3600)),
+	#TODO: fixme later
+    ('wiredtraffic', 'ifOutPkts'): ('ifoutpkts', (lambda v: v * 3600)),
+    ('wiredtraffic', 'ifOutUcastPkts'): (['ifoutpkts', 'ifoutucastpkts'], (lambda v: v * 3600)),
+    ('wiredtraffic', 'ifOutErrors'): ('ifouterrors', (lambda v: v > 100000 and 0 or v*3600)),
+
+    ('intftraffic', 'ifInOctets'): ('ifinoctets', (lambda v: v * 0.45)),
+	('intftraffic', 'ifInNUcastPkts'): ('ifinnucastpkts', (lambda v: v * 3600)),
+	('intftraffic', 'ifInDiscards'): ('ifindiscards', (lambda v: v * 3600)),
+	#TODO: fixme later
+	('intftraffic', 'ifInPkts'): ('ifInPkts', (lambda v: v * 3600)),
+	('intftraffic', 'ifInUcastPkts'): ('ifinucastpkts', (lambda v: v * 3600)),
+	('intftraffic', 'ifInErrors'): ('ifinerrors', (lambda v: v * 3600)),
+	('intftraffic', 'ifOutOctets'): ('ifoutoctets', (lambda v: v * 0.45)),
+	('intftraffic', 'ifOutNUcastPkts'): ('ifoutnucastpkts', (lambda v: v * 3600)),
+	('intftraffic', 'ifOutDiscards'): ('ifoutdiscards', (lambda v: v * 3600)),
+	#TODO: fixme later
+	('intftraffic', 'ifOutPkts'): ('ifOutPkts', (lambda v: v * 3600)),
+	('intftraffic', 'ifOutUcastPkts'): ('ifoutucastpkts', (lambda v: v * 3600)),
+	('intftraffic', 'ifOutErrors'): ('ifouterrors', (lambda v: v * 3600)),
+	('intftraffic', 'ifUpDwnTimes'): ('itfupdownnums', (lambda v: v * 3600)),
+
+    ('swcpu', 'cpuLoad1'): (['cpuper', 'cpumax'], (lambda v: v)),
+    ('swmem', 'memUsage'): (['memper', 'memmax'], (lambda v: v)),
+
+	#TODO: FIXME later
+	('dhcppool', 'dhcpUsage'): ('dhcpusage', (lambda v: v)),
+
+    ('ssidwireless', 'ifInOctets'): ('rxbytestotal', (lambda v: v * 0.45)),
+    ('ssidwireless', 'ifInPkts'): ('rxpacketstotal', (lambda v: v * 3600)),
+    ('ssidwireless', 'ifOutOctets'): ('txbytestotal', (lambda v: v * 0.45)),
+    ('ssidwireless', 'ifOutPkts'): ('txpacketstotal', (lambda v: v * 3600))}
+
+
 	key, line = tuple(line.split("@"))
 	dn, grp = tuple(key.rsplit(":", 1))
 	time, line = tuple(line.split(":"))
 	metrics = line.split(",")
-	for metric in metric:
+	result = {}
+	for metric in metrics:
 	    raw_name, val = tuple(metric.split("="))
-		name, format = metric_mapping[(grp, raw_name)]
-		names = type(name) == type('') and [name] or name
-		for name in names:
-			yield dn, {name: format(float(val))}
+	    name, format = mapping[(grp, raw_name)]
+	    names = type(name) == type('') and [name] or name
+	    for name in names:
+			result[name] = format(float(val)) 
+	yield dn, result
 
 """
 Reduce: "Dn" -> {Metric, Val}
@@ -144,7 +170,6 @@ def reduce(iter, params):
 	for dn, metrics in kvgroup(sorted(iter)):
 		dataset = {}
 		for metric in metrics:
-			print dn, metric
 			for name, val in metric.iteritems():
 				if dataset.has_key(name):
 					dataset[name].append(val)
@@ -159,7 +184,6 @@ if __name__ == '__main__':
                       help='Disco master')
 
     (options, hour) = parser.parse_args()
-    print hour
 	#get time of now
     job = Job().run(input=["http://localhost:9999/journal/25/1.journal",
 			"http://localhost:9999/journal/25/2.journal",
@@ -169,13 +193,17 @@ if __name__ == '__main__':
 			"http://localhost:9999/journal/25/6.journal",
 			"http://localhost:9999/journal/25/7.journal",
 			"http://localhost:9999/journal/25/8.journal",
+			"http://localhost:9999/journal/25/12.journal",
 			"http://localhost:9999/journal/25/11.journal"],
-			map=map1,
-			reduce=reduce1,
-			partitions=8,
+			map=map,
+			reduce=reduce,
+			partitions=16,
 			merge_partitions=False)
     out = file("out.txt", "w")
-    for dn, metrics in result_iterator(job.wait(show=True)): #
-        print >>out, dn, ":", str(metrics)
+    for dn, metrics in result_iterator(job.wait(show=True)): 
+		list = [name + '=' + '|'.join([str(v) for v in values])
+			for name, values in metrics.iteritems()]
+		print >>out, dn, ":", ",".join(list)
     out.close()
+
 
